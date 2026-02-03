@@ -55,7 +55,6 @@ def process_location(loc):
     lat, lon = loc["latitude"], loc["longitude"]
     data = get_current_weather(lat, lon)
 
-    # huidige data
     current_temp = data["main"]["temp"]
     current_rain = data.get("rain", {}).get("1h", 0)
     current_main = data["weather"][0]["main"]
@@ -66,7 +65,6 @@ def process_location(loc):
         f"{current_temp:.1f}°C, neerslag: {current_rain:.1f} mm"
     )
 
-    # Retourneer een dict zodat we makkelijk kunnen vergelijken
     return {"message": msg, "temp": current_temp, "rain": current_rain, "main": current_main}
 
 # datum bovenaan
@@ -92,7 +90,8 @@ for city in new_data:
 
 # verstuur alleen als er veranderingen zijn
 if changes:
-    full_message = header + "\n".join([new_data[city]["message"] for city in LOCATIONS])
+    # ✅ Gebruik nu de naam van de stad als key
+    full_message = header + "\n".join([new_data[loc["name"]]["message"] for loc in LOCATIONS])
     send_discord(full_message)
     print("Weerupdate verzonden")
     # sla nieuwe data op
