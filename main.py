@@ -60,9 +60,13 @@ def process_location(loc):
         msg += f"{hour}:00 – {emoji} {temp:.1f}°C, neerslag: {r:.1f} mm\n"
     return msg.strip()
 
+# datum bovenaan
+today = datetime.now().strftime("%A %d-%m-%Y")
+header = f"**Vandaag {today}**\n\n"
+
 # bouw bericht voor alle locaties
 messages = [process_location(loc) for loc in LOCATIONS]
-full_message = "\n\n".join(messages)
+full_message = header + "\n\n".join(messages)
 
 send_discord(full_message)
 print("Sent weather update")
