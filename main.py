@@ -32,21 +32,21 @@ def weather_emoji(temp, rain, main):
     else:
         return "❄️"
 
-def get_onecall_weather(lat, lon):
+def get_current_weather(lat, lon):
     url = (
-        f"https://api.openweathermap.org/data/2.5/onecall?"
-        f"lat={lat}&lon={lon}&units=metric&exclude=minutely,daily,alerts&appid={API_KEY}"
+        f"http://api.openweathermap.org/data/2.5/weather?"
+        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
     )
     response = requests.get(url)
     data = response.json()
     if response.status_code != 200:
-        raise ValueError(f"OneCall API error: {data}")
+        raise ValueError(f"API error: {data}")
     return data
 
 def process_location(loc):
     city = loc["name"]
     lat, lon = loc["latitude"], loc["longitude"]
-    data = get_onecall_weather(lat, lon)
+    data = get_current_weather(lat, lon)
 
     # huidige data
     current_temp = data["current"]["temp"]
