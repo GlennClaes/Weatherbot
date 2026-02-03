@@ -74,20 +74,21 @@ def process_location(loc):
 
     msg = f"📍 **{city}** – Nu: {weather_emoji(temp_now, rain_now, main_now)} {temp_now:.1f}°C, neerslag: {rain_now:.1f} mm\n"
 
-    # Voorspelling komende 6 uur
+    # Voorspelling komende 6 uur (2 blokken van 3 uur)
     forecast_data = get_forecast_weather(lat, lon)
-    for hour_data in forecast_data["hourly"][1:7]:
-        dt_local = datetime.utcfromtimestamp(hour_data["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
-        temp = hour_data["temp"]
-        rain = hour_data.get("rain", {}).get("1h", 0)
-        main = hour_data["weather"][0]["main"]
+    for forecast in forecast_data["list"][:2]:  # elk blok is 3 uur
+        dt_local = datetime.utcfromtimestamp(forecast["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
+        temp = forecast["main"]["temp"]
+        rain = forecast.get("rain", {}).get("3h", 0)
+        main = forecast["weather"][0]["main"]
         msg += f"⏱ {dt_local.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
 
-    # Daghoog en -laag
-    today = forecast_data["daily"][0]
-    msg += f"🔆 Vandaag max: {today['temp']['max']:.1f}°C, min: {today['temp']['min']:.1f}°C\n"
+    # Daghoog en -laag (berekend uit alle forecasts van vandaag)
+    today = [f["main"]["temp"] for f in forecast_data["list"]
+             if datetime.utcfromtimestamp(f["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ).date() == datetime.utcnow().date()]
+    if today:
+        msg += f"🔆 Vandaag max: {max(today):.1f}°C, min: {min(today):.1f}°C\n"
 
-    # Retourneer dict om te vergelijken met vorige data
     return {"message": msg, "temp": temp_now, "rain": rain_now, "main": main_now}
 
 # datum bovenaan
