@@ -49,16 +49,16 @@ def get_current_weather(lat, lon):
         raise ValueError(f"API error: {data}")
     return data
 
-def get_onecall_weather(lat, lon):
-    """Haal voorspelling op van OpenWeatherMap (One Call API)"""
+def get_forecast_weather(lat, lon):
+    """Haal voorspelling op van OpenWeatherMap (gratis 5-day / 3-hour forecast)"""
     url = (
-        f"https://api.openweathermap.org/data/2.5/onecall?"
-        f"lat={lat}&lon={lon}&units=metric&exclude=minutely,alerts&appid={API_KEY}"
+        f"http://api.openweathermap.org/data/2.5/forecast?"
+        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
     )
     response = requests.get(url)
     data = response.json()
     if response.status_code != 200:
-        raise ValueError(f"OneCall API error: {data}")
+        raise ValueError(f"Forecast API error: {data}")
     return data
 
 def process_location(loc):
