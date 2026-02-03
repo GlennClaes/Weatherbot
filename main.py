@@ -1,22 +1,24 @@
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
+import pytz  # zorgt voor correcte tijdzone
 
+# Config
 with open("config.json") as f:
     config = json.load(f)
 
 LOCATIONS = config["locations"]
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-API_KEY = os.environ["OPENWEATHER_API_KEY"]  # jouw API key in GitHub secrets
+API_KEY = os.environ["OPENWEATHER_API_KEY"]
+
+# Brussel tijdzone
+BRUSSEL_TZ = pytz.timezone("Europe/Brussels")
 
 def send_discord(msg):
     requests.post(WEBHOOK, json={"content": msg})
 
 def weather_emoji(temp, rain, main):
-    """
-    Emoji kiezen op basis van regen/temp/conditie
-    """
     if "rain" in main.lower() or rain > 0.1:
         return "🌧"
     elif "snow" in main.lower():
@@ -30,58 +32,48 @@ def weather_emoji(temp, rain, main):
     else:
         return "❄️"
 
-def get_current_weather(city):
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&units=metric&appid={API_KEY}"
+def get_onecall_weather(lat, lon):
+    url = (
+        f"https://api.openweathermap.org/data/2.5/onecall?"
+        f"lat={lat}&lon={lon}&units=metric&exclude=minutely,daily,alerts&appid={API_KEY}"
+    )
     response = requests.get(url)
     data = response.json()
     if response.status_code != 200:
-        raise ValueError(f"Weather API error for {city}: {data}")
-    return data
-
-def get_forecast_weather(city):
-    url = f"https://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&appid={API_KEY}"
-    response = requests.get(url)
-    data = response.json()
-    if response.status_code != 200:
-        raise ValueError(f"Forecast API error for {city}: {data}")
+        raise ValueError(f"OneCall API error: {data}")
     return data
 
 def process_location(loc):
     city = loc["name"]
-    current_data = get_current_weather(city)
-    forecast_data = get_forecast_weather(city)
+    lat, lon = loc["latitude"], loc["longitude"]
+    data = get_onecall_weather(lat, lon)
 
-    current_temp = current_data["main"]["temp"]
-    current_rain = current_data.get("rain", {}).get("1h", 0)
-    current_main = current_data["weather"][0]["main"]
+    # huidige data
+    current_temp = data["current"]["temp"]
+    current_rain = data["current"].get("rain", {}).get("1h", 0)
+    current_main = data["current"]["weather"][0]["main"]
 
-    msg = f"📍 {city} – nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
+    msg = f"📍 **{city}** – Nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
 
-    # forecast komende 5 uur (3-uursintervallen)
-    now = datetime.utcnow()
-    forecast_hours = []
-    for entry in forecast_data["list"]:
-        dt = datetime.utcfromtimestamp(entry["dt"])
-        if now < dt <= now + timedelta(hours=5):
-            forecast_hours.append(entry)
+    # korte voorspelling komende uur
+    next_hour = data["hourly"][1]  # het uur na nu
+    temp = next_hour["temp"]
+    rain = next_hour.get("rain", {}).get("1h", 0)
+    main = next_hour["weather"][0]["main"]
 
-    msg += "Komende 5 uur:\n"
-    for hour_data in forecast_hours:
-        dt = datetime.utcfromtimestamp(hour_data["dt"])
-        temp = hour_data["main"]["temp"]
-        rain = hour_data.get("rain", {}).get("3h", 0)
-        main = hour_data["weather"][0]["main"]
-        msg += f"{dt.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
+    # converteer UTC naar lokale tijd Brussel
+    dt_local = datetime.utcfromtimestamp(next_hour["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
+    msg += f"⏱ {dt_local.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
 
     return msg.strip()
 
 # datum bovenaan
-today = datetime.now().strftime("%A %d-%m-%Y")
-header = f"**Vandaag {today}**\n\n"
+now_brussel = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
+header = f"**Weerupdate {now_brussel.strftime('%A %d-%m-%Y')}**\n\n"
 
-# bouw bericht voor alle locaties
+# bouw bericht
 messages = [process_location(loc) for loc in LOCATIONS]
-full_message = header + "\n\n".join(messages)
+full_message = header + "\n".join(messages)
 
 send_discord(full_message)
-print("Sent weather update")
+print("Weerupdate verzonden")

@@ -2,8 +2,8 @@ name: Weather Bot
 
 on:
   schedule:
-    # van 08:00 tot 23:00 UTC elk uur
-    - cron: "0 8-23 * * *"
+    # Elke dag om 07:00 UTC (08:00 Brussel-tijd winter, zomertijd wordt automatisch gecorrigeerd in het script)
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
