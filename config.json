@@ -2,33 +2,38 @@
   "locations": [
     {
       "name": "Diest",
-      "latitude": 50.98,
-      "longitude": 5.09
+      "latitude": 50.984455,
+      "longitude": 5.050773
     },
     {
       "name": "Hasselt",
-      "latitude": 50.93,
-      "longitude": 5.33
+      "latitude": 50.931570,
+      "longitude": 5.341570
     },
     {
       "name": "Lummen",
-      "latitude": 50.95,
-      "longitude": 5.11
+      "latitude": 50.985921,
+      "longitude": 5.189803
     },
     {
       "name": "Loksbergen",
-      "latitude": 50.99,
-      "longitude": 5.28
+      "latitude": 50.934592,
+      "longitude": 5.070217
     },
     {
       "name": "Halen",
-      "latitude": 50.98,
-      "longitude": 5.13
+      "latitude": 50.948182,
+      "longitude": 5.115237
     },
     {
-      "name": "Limburg, België",
-      "latitude": 50.95,
-      "longitude": 5.35
+      "name": "Linkhout",
+      "latitude": 50.965320,
+      "longitude": 5.134397
+    },
+    {
+      "name": "Geetbets",
+      "latitude": 50.884558,
+      "longitude": 5.080195
     }
   ]
 }

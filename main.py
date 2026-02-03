@@ -37,41 +37,52 @@ def weather_emoji(temp, rain, main):
     else:
         return "❄️"
 
-def get_current_weather(lat, lon):
-    """Haal huidige weerdata op van OpenWeatherMap"""
+def get_onecall_weather(lat, lon):
+    """Haal huidige weerdata + voorspelling op van OpenWeatherMap"""
     url = (
-        f"http://api.openweathermap.org/data/2.5/weather?"
-        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
+        f"https://api.openweathermap.org/data/2.5/onecall?"
+        f"lat={lat}&lon={lon}&units=metric&exclude=minutely,alerts&appid={API_KEY}"
     )
     response = requests.get(url)
     data = response.json()
     if response.status_code != 200:
-        raise ValueError(f"API error: {data}")
+        raise ValueError(f"OneCall API error: {data}")
     return data
 
 def process_location(loc):
     """Verwerk locatie en genereer bericht"""
     city = loc["name"]
     lat, lon = loc["latitude"], loc["longitude"]
-    data = get_current_weather(lat, lon)
+    data = get_onecall_weather(lat, lon)
 
-    current_temp = data["main"]["temp"]
-    current_rain = data.get("rain", {}).get("1h", 0)
-    current_main = data["weather"][0]["main"]
+    # huidige weer
+    current = data["current"]
+    temp_now = current["temp"]
+    rain_now = current.get("rain", {}).get("1h", 0)
+    main_now = current["weather"][0]["main"]
 
-    msg = (
-        f"📍 **{city}** – Nu: "
-        f"{weather_emoji(current_temp, current_rain, current_main)} "
-        f"{current_temp:.1f}°C, neerslag: {current_rain:.1f} mm"
-    )
+    msg = f"📍 **{city}** – Nu: {weather_emoji(temp_now, rain_now, main_now)} {temp_now:.1f}°C, neerslag: {rain_now:.1f} mm\n"
 
-    return {"message": msg, "temp": current_temp, "rain": current_rain, "main": current_main}
+    # voorspelling komende 6 uur
+    for hour_data in data["hourly"][1:7]:
+        dt_local = datetime.utcfromtimestamp(hour_data["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
+        temp = hour_data["temp"]
+        rain = hour_data.get("rain", {}).get("1h", 0)
+        main = hour_data["weather"][0]["main"]
+        msg += f"⏱ {dt_local.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
+
+    # daghoog en -laag
+    today = data["daily"][0]
+    msg += f"🔆 Vandaag max: {today['temp']['max']:.1f}°C, min: {today['temp']['min']:.1f}°C\n"
+
+    # Retourneer dict om te vergelijken met vorige data
+    return {"message": msg, "temp": temp_now, "rain": rain_now, "main": main_now}
 
 # datum bovenaan
 now_brussel = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
-header = f"**Weerupdate {now_brussel.strftime('%A %d-%m-%Y')}**\n\n"
+header = f"**Weerupdate {now_brussel.strftime('%A %d-%m-%Y %H:%M')}**\n\n"
 
-# haal vorige data
+# vorige data ophalen
 if os.path.exists(STATE_FILE):
     with open(STATE_FILE) as f:
         last_data = json.load(f)
@@ -90,7 +101,6 @@ for city in new_data:
 
 # verstuur alleen als er veranderingen zijn
 if changes:
-    # ✅ Gebruik nu de naam van de stad als key
     full_message = header + "\n".join([new_data[loc["name"]]["message"] for loc in LOCATIONS])
     send_discord(full_message)
     print("Weerupdate verzonden")
