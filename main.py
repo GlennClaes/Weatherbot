@@ -30,38 +30,46 @@ def weather_emoji(temp, rain, main):
     else:
         return "❄️"
 
-def get_weather(lat, lon):
-    url = (
-        f"https://api.openweathermap.org/data/2.5/onecall?"
-        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
-    )
-    return requests.get(url).json()
+def get_current_weather(city):
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&units=metric&appid={API_KEY}"
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code != 200:
+        raise ValueError(f"Weather API error for {city}: {data}")
+    return data
+
+def get_forecast_weather(city):
+    url = f"https://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&appid={API_KEY}"
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code != 200:
+        raise ValueError(f"Forecast API error for {city}: {data}")
+    return data
 
 def process_location(loc):
-    data = get_weather(loc["latitude"], loc["longitude"])
+    city = loc["name"]
+    current_data = get_current_weather(city)
+    forecast_data = get_forecast_weather(city)
 
-    current = data["current"]
-    current_temp = current["temp"]
-    current_rain = current.get("rain", {}).get("1h", 0)
-    current_main = current["weather"][0]["main"]
+    current_temp = current_data["main"]["temp"]
+    current_rain = current_data.get("rain", {}).get("1h", 0)
+    current_main = current_data["weather"][0]["main"]
 
-    msg = f"📍 {loc['name']} – nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
+    msg = f"📍 {city} – nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
 
-    # forecast komende 5 uur
+    # forecast komende 5 uur (3-uursintervallen)
     now = datetime.utcnow()
     forecast_hours = []
-    for hour_data in data["hourly"]:
-        dt = datetime.utcfromtimestamp(hour_data["dt"])
+    for entry in forecast_data["list"]:
+        dt = datetime.utcfromtimestamp(entry["dt"])
         if now < dt <= now + timedelta(hours=5):
-            forecast_hours.append(hour_data)
-        if len(forecast_hours) >= 5:
-            break
+            forecast_hours.append(entry)
 
     msg += "Komende 5 uur:\n"
     for hour_data in forecast_hours:
         dt = datetime.utcfromtimestamp(hour_data["dt"])
-        temp = hour_data["temp"]
-        rain = hour_data.get("rain", {}).get("1h", 0)
+        temp = hour_data["main"]["temp"]
+        rain = hour_data.get("rain", {}).get("3h", 0)
         main = hour_data["weather"][0]["main"]
         msg += f"{dt.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
 
