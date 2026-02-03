@@ -1,6 +1,6 @@
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 
 with open("config.json") as f:
@@ -45,10 +45,10 @@ def process_location(loc):
     now = datetime.now()
     next_hours = []
 
-    # pak komende 5 uur
+    # pak komende 5 uur vanaf het huidige uur
     for t, temp, r in zip(times, temps, rain):
         dt = datetime.fromisoformat(t)
-        if now <= dt <= now + timedelta(hours=5):
+        if dt >= now and dt <= now + timedelta(hours=5):
             next_hours.append((dt.hour, temp, r))
 
     if not next_hours:
@@ -57,7 +57,7 @@ def process_location(loc):
     msg = f"📍 {loc['name']} – komende 5 uur:\n"
     for hour, temp, r in next_hours:
         emoji = weather_emoji(temp, r)
-        msg += f"{hour}:00 – {emoji} {temp:.1f}°C, neerslag: {r:.1f} mm\n"
+        msg += f"{hour:02d}:00 – {emoji} {temp:.1f}°C, neerslag: {r:.1f} mm\n"
     return msg.strip()
 
 # datum bovenaan
