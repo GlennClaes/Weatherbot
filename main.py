@@ -74,4 +74,5 @@ messages = [process_location(loc) for loc in LOCATIONS]
 full_message = header + "\n".join(messages)
 
 # verstuur naar Discord
-send
+send_discord(full_message)
+print("Weerupdate verzonden")
