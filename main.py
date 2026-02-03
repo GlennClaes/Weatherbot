@@ -52,7 +52,7 @@ def get_current_weather(lat, lon):
 def get_onecall_weather(lat, lon):
     """Haal voorspelling op van OpenWeatherMap (One Call API)"""
     url = (
-        f"https://api.openweathermap.org/data/3.0/onecall?"
+        f"https://api.openweathermap.org/data/2.5/onecall?"
         f"lat={lat}&lon={lon}&units=metric&exclude=minutely,alerts&appid={API_KEY}"
     )
     response = requests.get(url)
