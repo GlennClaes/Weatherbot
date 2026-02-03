@@ -1,0 +1,26 @@
+name: Weather Bot
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # elk uur
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install deps
+      run: pip install requests
+
+    - name: Run bot
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      run: python main.py
