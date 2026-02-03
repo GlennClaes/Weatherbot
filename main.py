@@ -37,10 +37,22 @@ def weather_emoji(temp, rain, main):
     else:
         return "❄️"
 
-def get_onecall_weather(lat, lon):
-    """Haal huidige weerdata + voorspelling op van OpenWeatherMap"""
+def get_current_weather(lat, lon):
+    """Haal huidige weerdata op van OpenWeatherMap (huidig)"""
     url = (
-        f"https://api.openweathermap.org/data/2.5/onecall?"
+        f"http://api.openweathermap.org/data/2.5/weather?"
+        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
+    )
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code != 200:
+        raise ValueError(f"API error: {data}")
+    return data
+
+def get_onecall_weather(lat, lon):
+    """Haal voorspelling op van OpenWeatherMap (One Call API)"""
+    url = (
+        f"https://api.openweathermap.org/data/3.0/onecall?"
         f"lat={lat}&lon={lon}&units=metric&exclude=minutely,alerts&appid={API_KEY}"
     )
     response = requests.get(url)
@@ -50,29 +62,29 @@ def get_onecall_weather(lat, lon):
     return data
 
 def process_location(loc):
-    """Verwerk locatie en genereer bericht"""
+    """Verwerk locatie en genereer bericht met huidig weer + voorspelling"""
     city = loc["name"]
     lat, lon = loc["latitude"], loc["longitude"]
-    data = get_onecall_weather(lat, lon)
 
-    # huidige weer
-    current = data["current"]
-    temp_now = current["temp"]
-    rain_now = current.get("rain", {}).get("1h", 0)
-    main_now = current["weather"][0]["main"]
+    # Huidig weer
+    current_data = get_current_weather(lat, lon)
+    temp_now = current_data["main"]["temp"]
+    rain_now = current_data.get("rain", {}).get("1h", 0)
+    main_now = current_data["weather"][0]["main"]
 
     msg = f"📍 **{city}** – Nu: {weather_emoji(temp_now, rain_now, main_now)} {temp_now:.1f}°C, neerslag: {rain_now:.1f} mm\n"
 
-    # voorspelling komende 6 uur
-    for hour_data in data["hourly"][1:7]:
+    # Voorspelling komende 6 uur
+    forecast_data = get_onecall_weather(lat, lon)
+    for hour_data in forecast_data["hourly"][1:7]:
         dt_local = datetime.utcfromtimestamp(hour_data["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
         temp = hour_data["temp"]
         rain = hour_data.get("rain", {}).get("1h", 0)
         main = hour_data["weather"][0]["main"]
         msg += f"⏱ {dt_local.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
 
-    # daghoog en -laag
-    today = data["daily"][0]
+    # Daghoog en -laag
+    today = forecast_data["daily"][0]
     msg += f"🔆 Vandaag max: {today['temp']['max']:.1f}°C, min: {today['temp']['min']:.1f}°C\n"
 
     # Retourneer dict om te vergelijken met vorige data
