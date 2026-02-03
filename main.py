@@ -32,7 +32,7 @@ def weather_emoji(temp, rain, main):
 
 def get_weather(lat, lon):
     url = (
-        f"https://api.openweathermap.org/data/3.0/onecall?"
+        f"https://api.openweathermap.org/data/2.5/onecall?"
         f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
     )
     return requests.get(url).json()
