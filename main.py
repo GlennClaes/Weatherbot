@@ -75,7 +75,7 @@ def process_location(loc):
     msg = f"📍 **{city}** – Nu: {weather_emoji(temp_now, rain_now, main_now)} {temp_now:.1f}°C, neerslag: {rain_now:.1f} mm\n"
 
     # Voorspelling komende 6 uur
-    forecast_data = get_onecall_weather(lat, lon)
+    forecast_data = get_forecast_weather(lat, lon)
     for hour_data in forecast_data["hourly"][1:7]:
         dt_local = datetime.utcfromtimestamp(hour_data["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
         temp = hour_data["temp"]
