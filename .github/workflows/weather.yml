@@ -2,7 +2,8 @@ name: Weather Bot
 
 on:
   schedule:
-    - cron: "0 * * * *"   # elk uur
+    # van 08:00 tot 23:00 UTC elk uur
+    - cron: "0 8-23 * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,17 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: Install deps
-      run: pip install requests
+      - name: Install dependencies
+        run: pip install requests
 
-    - name: Run bot
-      env:
-        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      run: python main.py
+      - name: Run Weather Bot
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python main.py

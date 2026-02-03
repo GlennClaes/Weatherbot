@@ -3,23 +3,31 @@ import json
 from datetime import datetime, timedelta
 import os
 
-# Load config
 with open("config.json") as f:
     config = json.load(f)
 
 LOCATIONS = config["locations"]
-WEBHOOK = os.environ["DISCORD_WEBHOOK"]  # webhook als GitHub secret
+WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 def send_discord(msg):
-    """
-    Verstuur bericht naar Discord via webhook
-    """
     requests.post(WEBHOOK, json={"content": msg})
 
+def weather_emoji(temp, rain):
+    """
+    Kies emoji op basis van regen en temp
+    """
+    if rain > 0.1:
+        return "🌧"
+    elif temp >= 25:
+        return "☀️"
+    elif temp >= 15:
+        return "⛅"
+    elif temp >= 5:
+        return "🌤"
+    else:
+        return "❄️"
+
 def get_weather(lat, lon):
-    """
-    Haal weerdata op van Open-Meteo
-    """
     url = (
         f"https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
@@ -29,38 +37,32 @@ def get_weather(lat, lon):
     return requests.get(url).json()
 
 def process_location(loc):
-    """
-    Bereken morgen gemiddelde temperatuur en totale neerslag
-    """
     data = get_weather(loc["latitude"], loc["longitude"])
     times = data["hourly"]["time"]
     temps = data["hourly"]["temperature_2m"]
     rain = data["hourly"]["precipitation"]
 
-    tomorrow = (datetime.now() + timedelta(days=1)).date()
+    now = datetime.now()
+    next_hours = []
 
-    tomorrow_hours = [
-        (datetime.fromisoformat(t), temp, r)
-        for t, temp, r in zip(times, temps, rain)
-        if datetime.fromisoformat(t).date() == tomorrow
-    ]
+    # pak komende 5 uur
+    for t, temp, r in zip(times, temps, rain):
+        dt = datetime.fromisoformat(t)
+        if now <= dt <= now + timedelta(hours=5):
+            next_hours.append((dt.hour, temp, r))
 
-    if not tomorrow_hours:
-        return f"🌤 {loc['name']}: Geen data voor morgen beschikbaar"
+    if not next_hours:
+        return f"{loc['name']}: geen data beschikbaar"
 
-    avg_temp = sum(x[1] for x in tomorrow_hours) / len(tomorrow_hours)
-    total_rain = sum(x[2] for x in tomorrow_hours)
+    msg = f"📍 {loc['name']} – komende 5 uur:\n"
+    for hour, temp, r in next_hours:
+        emoji = weather_emoji(temp, r)
+        msg += f"{hour}:00 – {emoji} {temp:.1f}°C, neerslag: {r:.1f} mm\n"
+    return msg.strip()
 
-    return (
-        f"🌤 {loc['name']}:\n"
-        f"Gem temp: {avg_temp:.1f}°C\n"
-        f"Totale neerslag: {total_rain:.1f} mm"
-    )
-
-# Maak bericht voor alle locaties
+# bouw bericht voor alle locaties
 messages = [process_location(loc) for loc in LOCATIONS]
 full_message = "\n\n".join(messages)
 
-# Verstuur naar Discord
 send_discord(full_message)
-print("Sent weather update for all locations")
+print("Sent weather update")
