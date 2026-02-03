@@ -16,9 +16,11 @@ API_KEY = os.environ["OPENWEATHER_API_KEY"]
 BRUSSEL_TZ = pytz.timezone("Europe/Brussels")
 
 def send_discord(msg):
+    """Verstuur bericht naar Discord webhook"""
     requests.post(WEBHOOK, json={"content": msg})
 
 def weather_emoji(temp, rain, main):
+    """Kies emoji op basis van temperatuur, regen en weerconditie"""
     if "rain" in main.lower() or rain > 0.1:
         return "🌧"
     elif "snow" in main.lower():
@@ -33,6 +35,7 @@ def weather_emoji(temp, rain, main):
         return "❄️"
 
 def get_current_weather(lat, lon):
+    """Haal huidige weerdata op van OpenWeatherMap"""
     url = (
         f"http://api.openweathermap.org/data/2.5/weather?"
         f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
@@ -44,26 +47,21 @@ def get_current_weather(lat, lon):
     return data
 
 def process_location(loc):
+    """Verwerk locatie en genereer bericht"""
     city = loc["name"]
     lat, lon = loc["latitude"], loc["longitude"]
     data = get_current_weather(lat, lon)
 
     # huidige data
-    current_temp = data["current"]["temp"]
-    current_rain = data["current"].get("rain", {}).get("1h", 0)
-    current_main = data["current"]["weather"][0]["main"]
+    current_temp = data["main"]["temp"]
+    current_rain = data.get("rain", {}).get("1h", 0)
+    current_main = data["weather"][0]["main"]
 
-    msg = f"📍 **{city}** – Nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
-
-    # korte voorspelling komende uur
-    next_hour = data["hourly"][1]  # het uur na nu
-    temp = next_hour["temp"]
-    rain = next_hour.get("rain", {}).get("1h", 0)
-    main = next_hour["weather"][0]["main"]
-
-    # converteer UTC naar lokale tijd Brussel
-    dt_local = datetime.utcfromtimestamp(next_hour["dt"]).replace(tzinfo=pytz.utc).astimezone(BRUSSEL_TZ)
-    msg += f"⏱ {dt_local.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
+    msg = (
+        f"📍 **{city}** – Nu: "
+        f"{weather_emoji(current_temp, current_rain, current_main)} "
+        f"{current_temp:.1f}°C, neerslag: {current_rain:.1f} mm"
+    )
 
     return msg.strip()
 
@@ -75,5 +73,5 @@ header = f"**Weerupdate {now_brussel.strftime('%A %d-%m-%Y')}**\n\n"
 messages = [process_location(loc) for loc in LOCATIONS]
 full_message = header + "\n".join(messages)
 
-send_discord(full_message)
-print("Weerupdate verzonden")
+# verstuur naar Discord
+send
