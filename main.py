@@ -1,6 +1,6 @@
 import requests
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import os
 
 with open("config.json") as f:
@@ -8,16 +8,19 @@ with open("config.json") as f:
 
 LOCATIONS = config["locations"]
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+API_KEY = os.environ["OPENWEATHER_API_KEY"]  # jouw API key in GitHub secrets
 
 def send_discord(msg):
     requests.post(WEBHOOK, json={"content": msg})
 
-def weather_emoji(temp, rain):
+def weather_emoji(temp, rain, main):
     """
-    Kies emoji op basis van regen en temp
+    Emoji kiezen op basis van regen/temp/conditie
     """
-    if rain > 0.1:
+    if "rain" in main.lower() or rain > 0.1:
         return "🌧"
+    elif "snow" in main.lower():
+        return "❄️"
     elif temp >= 25:
         return "☀️"
     elif temp >= 15:
@@ -29,35 +32,39 @@ def weather_emoji(temp, rain):
 
 def get_weather(lat, lon):
     url = (
-        f"https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}"
-        "&hourly=temperature_2m,precipitation"
-        "&timezone=auto"
+        f"https://api.openweathermap.org/data/3.0/onecall?"
+        f"lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
     )
     return requests.get(url).json()
 
 def process_location(loc):
     data = get_weather(loc["latitude"], loc["longitude"])
-    times = data["hourly"]["time"]
-    temps = data["hourly"]["temperature_2m"]
-    rain = data["hourly"]["precipitation"]
 
-    now = datetime.now()
-    next_hours = []
+    current = data["current"]
+    current_temp = current["temp"]
+    current_rain = current.get("rain", {}).get("1h", 0)
+    current_main = current["weather"][0]["main"]
 
-    # pak komende 5 uur vanaf het huidige uur
-    for t, temp, r in zip(times, temps, rain):
-        dt = datetime.fromisoformat(t)
-        if dt >= now and dt <= now + timedelta(hours=5):
-            next_hours.append((dt.hour, temp, r))
+    msg = f"📍 {loc['name']} – nu: {weather_emoji(current_temp, current_rain, current_main)} {current_temp:.1f}°C, neerslag: {current_rain:.1f} mm\n"
 
-    if not next_hours:
-        return f"{loc['name']}: geen data beschikbaar"
+    # forecast komende 5 uur
+    now = datetime.utcnow()
+    forecast_hours = []
+    for hour_data in data["hourly"]:
+        dt = datetime.utcfromtimestamp(hour_data["dt"])
+        if now < dt <= now + timedelta(hours=5):
+            forecast_hours.append(hour_data)
+        if len(forecast_hours) >= 5:
+            break
 
-    msg = f"📍 {loc['name']} – komende 5 uur:\n"
-    for hour, temp, r in next_hours:
-        emoji = weather_emoji(temp, r)
-        msg += f"{hour:02d}:00 – {emoji} {temp:.1f}°C, neerslag: {r:.1f} mm\n"
+    msg += "Komende 5 uur:\n"
+    for hour_data in forecast_hours:
+        dt = datetime.utcfromtimestamp(hour_data["dt"])
+        temp = hour_data["temp"]
+        rain = hour_data.get("rain", {}).get("1h", 0)
+        main = hour_data["weather"][0]["main"]
+        msg += f"{dt.hour:02d}:00 – {weather_emoji(temp, rain, main)} {temp:.1f}°C, neerslag: {rain:.1f} mm\n"
+
     return msg.strip()
 
 # datum bovenaan
